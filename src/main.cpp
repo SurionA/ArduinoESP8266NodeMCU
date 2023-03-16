@@ -6,6 +6,9 @@
 #include "HC_Server.h"
 #include "secrets.h"
 
+// int sleepInterval = 2;
+int jobDone = 0;
+
 void setup() {
   Serial.begin(9600);
   Serial.setDebugOutput(true);
@@ -26,35 +29,33 @@ void setup() {
   HC_Server::discoveryService();
   HC_ntp::printLocalTime();
 }
+using Callback = void (*)();
+
+void loopSleep(Callback callback, int sleepInterval ) {
+  int minutes = HC_ntp::getMinutes();
+
+  if (fmod(minutes, sleepInterval) == 0 && jobDone ==0) {
+    jobDone=1;
+    callback();
+  } else {
+    jobDone=0;
+
+    int sleepDelay = HC_ntp::getDelaySyncTime(sleepInterval);
+    Serial.println();
+    Serial.println("Estimated sleep: " +  (String) sleepDelay);
+
+    delay(sleepDelay);
+  }
+}
+
+
+void callback() {
+  HC_DHTSensors.updateHcValues();
+  Serial.println();
+  HC_ntp::printLocalTime();
+  Serial.println("JOB IS DONE !!");
+}
 
 void loop() {
-  HC_DHTSensors.updateHcValues();
-  int minutes = HC_ntp::getSencond();
-
-        if (fmod(minutes, 15)==0) {
-
-        Serial.print("minutes: ");
-        Serial.println(minutes);
-        } else {
-        Serial.println("Sleep");
-        }
-
-  // int delay = 0;
-
-    // switch (true)
-    //   {
-    //   case minutes < 15:
-    //     delay = 15 - minutes
-    //      break;
-    //   case 5:
-    //   case 6:
-    //   case 7:
-    //   case 8:
-    //      cout << "Now you need a house. ";
-    //      break;
-    //   default:
-    //      cout << "What are you? A peace-loving hippie freak? ";
-    //   }
-  // HC_DHTSensors.displayTempHumidity();
-  delay(1000);
+  loopSleep(callback, 2);
 }
